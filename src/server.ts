@@ -1,5 +1,6 @@
 import express from "express";
-import syncRouter from "./routes/sync";
+import { postSync } from "./routes/sync";
+import { requireBearerToken } from "./middleware/authBearer";
 import { env } from "./config/env";
 
 const app = express();
@@ -10,7 +11,7 @@ app.get("/health", (_req, res) => {
   res.status(200).json({ ok: true });
 });
 
-app.use("/api", syncRouter);
+app.post("/api/sync", requireBearerToken, postSync);
 
 app.listen(env.port, () => {
   console.log(`NoteIt sync API running on port ${env.port}`);
