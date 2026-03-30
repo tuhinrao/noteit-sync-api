@@ -3,12 +3,12 @@ import {
   fetchServerChangesSince,
   findNoteByClientId,
   insertNote,
-  updateNote
+  updateNote,
 } from "../db/notes";
 import {
   SyncNoteChange,
   SyncRequestBody,
-  SyncResponseBody
+  SyncResponseBody,
 } from "../types/sync";
 import { isValidIsoDate } from "../utils/time";
 
@@ -49,6 +49,10 @@ function validateNote(note: SyncNoteChange): void {
 export async function runSync(
   input: SyncRequestBody
 ): Promise<SyncResponseBody> {
+  if (!input.userEmail || typeof input.userEmail !== "string") {
+    throw new Error("Invalid userEmail");
+  }
+
   if (input.lastSyncedAt !== null && input.lastSyncedAt !== undefined) {
     if (!isValidIsoDate(input.lastSyncedAt)) {
       throw new Error("Invalid lastSyncedAt");
@@ -60,13 +64,17 @@ export async function runSync(
   try {
     await client.query("BEGIN");
 
-    for (const incoming of input.changes) {
+    for (const incoming of input.noteChanges) {
       validateNote(incoming);
 
-      const existing = await findNoteByClientId(client, incoming.clientId);
+      const existing = await findNoteByClientId(
+        client,
+        input.userEmail,
+        incoming.clientId
+      );
 
       if (!existing) {
-        await insertNote(client, incoming, input.deviceId ?? null);
+        await insertNote(client, input.userEmail, incoming, input.deviceId ?? null);
         continue;
       }
 
@@ -75,12 +83,13 @@ export async function runSync(
 
       // last write wins
       if (incomingUpdatedAt > serverUpdatedAt) {
-        await updateNote(client, incoming, input.deviceId ?? null);
+        await updateNote(client, input.userEmail, incoming, input.deviceId ?? null);
       }
     }
 
     const serverChanges = await fetchServerChangesSince(
       client,
+      input.userEmail,
       input.lastSyncedAt ?? null
     );
 
@@ -92,7 +101,9 @@ export async function runSync(
 
     return {
       serverTime: serverTimeResult.rows[0].now.toISOString(),
-      changes: serverChanges
+      noteChanges: serverChanges,
+      categoryChanges: [],
+      noteCategoryChanges: [],
     };
   } catch (error) {
     await client.query("ROLLBACK");

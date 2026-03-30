@@ -18,7 +18,12 @@ function optionalBoolean(name: string, defaultValue = false): boolean {
 
 export const env = {
   port: Number(process.env.PORT?.trim() || 4000),
-  syncAccessToken: required("SYNC_ACCESS_TOKEN"),
+
+  auth0: {
+    domain: required("AUTH0_DOMAIN"),
+    audience: required("AUTH0_AUDIENCE"),
+  },
+
   db: {
     host: required("DATABASE_HOST"),
     port: Number(required("DATABASE_PORT")),
