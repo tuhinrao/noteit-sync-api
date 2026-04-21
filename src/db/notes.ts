@@ -7,6 +7,7 @@ interface DbNoteRow {
   user_email: string;
   title: string;
   body: string;
+  category_client_id: string | null;
   is_pinned: boolean;
   is_archived: boolean;
   created_at: Date;
@@ -19,6 +20,7 @@ export function mapRowToSyncChange(row: DbNoteRow): SyncNoteChange {
     clientId: row.client_id,
     title: row.title,
     body: row.body,
+    categoryClientId: row.category_client_id,
     isPinned: row.is_pinned,
     isArchived: row.is_archived,
     createdAt: toIsoString(row.created_at)!,
@@ -39,6 +41,7 @@ export async function findNoteByClientId(
       user_email,
       title,
       body,
+      category_client_id,
       is_pinned,
       is_archived,
       created_at,
@@ -68,6 +71,7 @@ export async function insertNote(
       user_email,
       title,
       body,
+      category_client_id,
       is_pinned,
       is_archived,
       created_at,
@@ -84,12 +88,13 @@ export async function insertNote(
       $4,
       $5,
       $6,
-      $7::timestamptz,
+      $7,
       $8::timestamptz,
       $9::timestamptz,
+      $10::timestamptz,
       'synced',
       NOW(),
-      $10
+      $11
     )
     `,
     [
@@ -97,6 +102,7 @@ export async function insertNote(
       userEmail,
       note.title,
       note.body,
+      note.categoryClientId,
       note.isPinned,
       note.isArchived,
       note.createdAt,
@@ -119,13 +125,14 @@ export async function updateNote(
     SET
       title = $3,
       body = $4,
-      is_pinned = $5,
-      is_archived = $6,
-      updated_at = $7::timestamptz,
-      deleted_at = $8::timestamptz,
+      category_client_id = $5,
+      is_pinned = $6,
+      is_archived = $7,
+      updated_at = $8::timestamptz,
+      deleted_at = $9::timestamptz,
       sync_status = 'synced',
       last_synced_at = NOW(),
-      last_updated_by_device = $9
+      last_updated_by_device = $10
     WHERE user_email = $1
       AND client_id = $2
     `,
@@ -134,6 +141,7 @@ export async function updateNote(
       note.clientId,
       note.title,
       note.body,
+      note.categoryClientId,
       note.isPinned,
       note.isArchived,
       note.updatedAt,
@@ -158,6 +166,7 @@ export async function fetchServerChangesSince(
         user_email,
         title,
         body,
+        category_client_id,
         is_pinned,
         is_archived,
         created_at,
@@ -177,6 +186,7 @@ export async function fetchServerChangesSince(
         user_email,
         title,
         body,
+        category_client_id,
         is_pinned,
         is_archived,
         created_at,

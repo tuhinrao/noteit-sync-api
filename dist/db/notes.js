@@ -11,6 +11,7 @@ function mapRowToSyncChange(row) {
         clientId: row.client_id,
         title: row.title,
         body: row.body,
+        categoryClientId: row.category_client_id,
         isPinned: row.is_pinned,
         isArchived: row.is_archived,
         createdAt: (0, time_1.toIsoString)(row.created_at),
@@ -25,6 +26,7 @@ async function findNoteByClientId(client, userEmail, clientId) {
       user_email,
       title,
       body,
+      category_client_id,
       is_pinned,
       is_archived,
       created_at,
@@ -44,6 +46,7 @@ async function insertNote(client, userEmail, note, deviceId) {
       user_email,
       title,
       body,
+      category_client_id,
       is_pinned,
       is_archived,
       created_at,
@@ -60,18 +63,20 @@ async function insertNote(client, userEmail, note, deviceId) {
       $4,
       $5,
       $6,
-      $7::timestamptz,
+      $7,
       $8::timestamptz,
       $9::timestamptz,
+      $10::timestamptz,
       'synced',
       NOW(),
-      $10
+      $11
     )
     `, [
         note.clientId,
         userEmail,
         note.title,
         note.body,
+        note.categoryClientId,
         note.isPinned,
         note.isArchived,
         note.createdAt,
@@ -86,13 +91,14 @@ async function updateNote(client, userEmail, note, deviceId) {
     SET
       title = $3,
       body = $4,
-      is_pinned = $5,
-      is_archived = $6,
-      updated_at = $7::timestamptz,
-      deleted_at = $8::timestamptz,
+      category_client_id = $5,
+      is_pinned = $6,
+      is_archived = $7,
+      updated_at = $8::timestamptz,
+      deleted_at = $9::timestamptz,
       sync_status = 'synced',
       last_synced_at = NOW(),
-      last_updated_by_device = $9
+      last_updated_by_device = $10
     WHERE user_email = $1
       AND client_id = $2
     `, [
@@ -100,6 +106,7 @@ async function updateNote(client, userEmail, note, deviceId) {
         note.clientId,
         note.title,
         note.body,
+        note.categoryClientId,
         note.isPinned,
         note.isArchived,
         note.updatedAt,
@@ -116,6 +123,7 @@ async function fetchServerChangesSince(client, userEmail, lastSyncedAt) {
         user_email,
         title,
         body,
+        category_client_id,
         is_pinned,
         is_archived,
         created_at,
@@ -133,6 +141,7 @@ async function fetchServerChangesSince(client, userEmail, lastSyncedAt) {
         user_email,
         title,
         body,
+        category_client_id,
         is_pinned,
         is_archived,
         created_at,

@@ -15,6 +15,7 @@ export interface SyncNoteChange {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+  syncStatus?: SyncStatus | null;
 }
 
 export interface SyncCategoryChange {
@@ -43,6 +44,22 @@ export interface SyncNoteTagChange {
   deletedAt: string | null;
 }
 
+export interface SyncNoteImageChange {
+  clientId: string;
+  noteClientId: string;
+  remoteFileKey: string | null;
+  mimeType: string;
+  fileName: string;
+  fileSizeBytes: number;
+  width: number | null;
+  height: number | null;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  syncStatus?: SyncStatus | null;
+}
+
 export interface SyncRequestBody {
   userEmail: string;
   lastSyncedAt: string | null;
@@ -50,6 +67,7 @@ export interface SyncRequestBody {
   categoryChanges: SyncCategoryChange[];
   tagChanges: SyncTagChange[];
   noteTagChanges: SyncNoteTagChange[];
+  noteImageChanges: SyncNoteImageChange[];
   deviceId?: string | null;
 }
 
@@ -97,11 +115,30 @@ export interface SyncNoteTag {
   deletedAt: string | null;
 }
 
+export interface SyncNoteImage {
+  clientId: string;
+  noteClientId: string;
+  userEmail: string;
+  remoteFileKey: string | null;
+  mimeType: string;
+  fileName: string;
+  fileSizeBytes: number;
+  width: number | null;
+  height: number | null;
+  sortOrder: number;
+  syncStatus: SyncStatus;
+  createdAt: string;
+  updatedAt: string;
+  lastSyncedAt: string | null;
+  deletedAt: string | null;
+}
+
 export interface SyncResponse {
   notes: SyncNote[];
   categories: SyncCategory[];
   tags: SyncTag[];
   noteTagLinks: SyncNoteTag[];
+  noteImages: SyncNoteImage[];
   serverTime: string;
 }
 
@@ -112,4 +149,5 @@ export type NoteChange = SyncNoteChange;
 export type CategoryChange = SyncCategoryChange;
 export type TagChange = SyncTagChange;
 export type NoteTagChange = SyncNoteTagChange;
+export type NoteImageChange = SyncNoteImageChange;
 export type SyncRequest = SyncRequestBody;

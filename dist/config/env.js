@@ -19,6 +19,9 @@ function optionalBoolean(name, defaultValue = false) {
         return defaultValue;
     return value === "true";
 }
+function optionalString(name, defaultValue) {
+    return process.env[name]?.trim() || defaultValue;
+}
 exports.env = {
     port: Number(process.env.PORT?.trim() || 4000),
     auth0: {
@@ -32,5 +35,8 @@ exports.env = {
         user: required("DATABASE_USERNAME"),
         password: required("DATABASE_PASSWORD"),
         ssl: optionalBoolean("DATABASE_SSL", false),
+    },
+    storage: {
+        root: optionalString("NOTEIT_STORAGE_ROOT", "/opt/noteit-storage"),
     },
 };

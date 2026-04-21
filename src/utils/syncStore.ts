@@ -2,9 +2,11 @@ import { PoolClient } from "pg";
 import { pool } from "../db/pool";
 import {
   CategoryChange,
+  NoteImageChange,
   NoteTagChange,
   SyncCategory,
   SyncNote,
+  SyncNoteImage,
   SyncNoteTag,
   SyncRequest,
   SyncResponse,
@@ -53,6 +55,24 @@ type NoteTagRow = {
   user_email: string;
   created_at: Date | string;
   updated_at: Date | string;
+  deleted_at: Date | string | null;
+};
+
+type NoteImageRow = {
+  client_id: string;
+  note_client_id: string;
+  user_email: string;
+  remote_file_key: string | null;
+  mime_type: string;
+  file_name: string;
+  file_size_bytes: number;
+  width: number | null;
+  height: number | null;
+  sort_order: number;
+  sync_status: SyncNoteImage["syncStatus"];
+  created_at: Date | string;
+  updated_at: Date | string;
+  last_synced_at: Date | string | null;
   deleted_at: Date | string | null;
 };
 
@@ -108,6 +128,26 @@ function mapNoteTag(row: NoteTagRow): SyncNoteTag {
     userEmail: row.user_email,
     createdAt: toIso(row.created_at),
     updatedAt: toIso(row.updated_at),
+    deletedAt: row.deleted_at ? toIso(row.deleted_at) : null,
+  };
+}
+
+function mapNoteImage(row: NoteImageRow): SyncNoteImage {
+  return {
+    clientId: row.client_id,
+    noteClientId: row.note_client_id,
+    userEmail: row.user_email,
+    remoteFileKey: row.remote_file_key,
+    mimeType: row.mime_type,
+    fileName: row.file_name,
+    fileSizeBytes: row.file_size_bytes,
+    width: row.width,
+    height: row.height,
+    sortOrder: row.sort_order,
+    syncStatus: row.sync_status,
+    createdAt: toIso(row.created_at),
+    updatedAt: toIso(row.updated_at),
+    lastSyncedAt: row.last_synced_at ? toIso(row.last_synced_at) : null,
     deletedAt: row.deleted_at ? toIso(row.deleted_at) : null,
   };
 }
@@ -324,6 +364,85 @@ async function applyNoteTagChanges(
   }
 }
 
+async function applyNoteImageChanges(
+  client: PoolClient,
+  userEmail: string,
+  imageChanges: NoteImageChange[]
+): Promise<void> {
+  for (const change of imageChanges) {
+    const noteOwnershipCheck = await client.query(
+      `
+      SELECT 1
+      FROM notes
+      WHERE client_id = $1
+        AND user_email = $2
+      LIMIT 1
+      `,
+      [change.noteClientId, userEmail]
+    );
+
+    if (noteOwnershipCheck.rowCount === 0) {
+      continue;
+    }
+
+    await client.query(
+      `
+      INSERT INTO note_images (
+        client_id,
+        note_client_id,
+        user_email,
+        remote_file_key,
+        mime_type,
+        file_name,
+        file_size_bytes,
+        width,
+        height,
+        sort_order,
+        created_at,
+        updated_at,
+        last_synced_at,
+        deleted_at
+      )
+      VALUES (
+        $1, $2, $3, $4, $5, $6, $7,
+        $8, $9, $10, $11, $12, NOW(), $13
+      )
+      ON CONFLICT (client_id)
+      DO UPDATE SET
+        note_client_id = EXCLUDED.note_client_id,
+        user_email = EXCLUDED.user_email,
+        remote_file_key = EXCLUDED.remote_file_key,
+        mime_type = EXCLUDED.mime_type,
+        file_name = EXCLUDED.file_name,
+        file_size_bytes = EXCLUDED.file_size_bytes,
+        width = EXCLUDED.width,
+        height = EXCLUDED.height,
+        sort_order = EXCLUDED.sort_order,
+        updated_at = EXCLUDED.updated_at,
+        deleted_at = EXCLUDED.deleted_at,
+        last_synced_at = NOW()
+      WHERE note_images.user_email = $3
+        AND note_images.updated_at <= EXCLUDED.updated_at
+      `,
+      [
+        change.clientId,
+        change.noteClientId,
+        userEmail,
+        change.remoteFileKey,
+        change.mimeType,
+        change.fileName,
+        change.fileSizeBytes,
+        change.width,
+        change.height,
+        change.sortOrder,
+        change.createdAt,
+        change.updatedAt,
+        change.deletedAt,
+      ]
+    );
+  }
+}
+
 async function getServerNotes(
   client: PoolClient,
   userEmail: string,
@@ -458,6 +577,46 @@ async function getServerNoteTagLinks(
   return result.rows.map(mapNoteTag);
 }
 
+async function getServerNoteImages(
+  client: PoolClient,
+  userEmail: string,
+  lastSyncedAt: string | null
+): Promise<SyncNoteImage[]> {
+  const boundary = lastSyncedAt ?? "1970-01-01T00:00:00.000Z";
+
+  const result = await client.query<NoteImageRow>(
+    `
+    SELECT
+      client_id,
+      note_client_id,
+      user_email,
+      remote_file_key,
+      mime_type,
+      file_name,
+      file_size_bytes,
+      width,
+      height,
+      sort_order,
+      'synced'::text AS sync_status,
+      created_at,
+      updated_at,
+      last_synced_at,
+      deleted_at
+    FROM note_images
+    WHERE user_email = $1
+      AND GREATEST(
+        updated_at,
+        COALESCE(last_synced_at, to_timestamp(0)),
+        COALESCE(deleted_at, to_timestamp(0))
+      ) > $2::timestamptz
+    ORDER BY updated_at ASC
+    `,
+    [userEmail, boundary]
+  );
+
+  return result.rows.map(mapNoteImage);
+}
+
 export async function runSync(payload: SyncRequest): Promise<SyncResponse> {
   const client = await pool.connect();
 
@@ -468,12 +627,14 @@ export async function runSync(payload: SyncRequest): Promise<SyncResponse> {
     await applyTagChanges(client, payload.userEmail, payload.tagChanges ?? []);
     await applyNoteChanges(client, payload.userEmail, payload.noteChanges ?? []);
     await applyNoteTagChanges(client, payload.userEmail, payload.noteTagChanges ?? []);
+    await applyNoteImageChanges(client, payload.userEmail, payload.noteImageChanges ?? []);
 
-    const [notes, categories, tags, noteTagLinks] = await Promise.all([
+    const [notes, categories, tags, noteTagLinks, noteImages] = await Promise.all([
       getServerNotes(client, payload.userEmail, payload.lastSyncedAt),
       getServerCategories(client, payload.userEmail, payload.lastSyncedAt),
       getServerTags(client, payload.userEmail, payload.lastSyncedAt),
       getServerNoteTagLinks(client, payload.userEmail, payload.lastSyncedAt),
+      getServerNoteImages(client, payload.userEmail, payload.lastSyncedAt),
     ]);
 
     await client.query("COMMIT");
@@ -483,6 +644,7 @@ export async function runSync(payload: SyncRequest): Promise<SyncResponse> {
       categories,
       tags,
       noteTagLinks,
+      noteImages,
       serverTime: new Date().toISOString(),
     };
   } catch (error) {

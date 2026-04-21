@@ -11,10 +11,6 @@ function isNullableIsoDate(value: unknown): boolean {
   return value === null || value === undefined || isIsoDate(value);
 }
 
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === "string");
-}
-
 function validatePayload(body: unknown): string[] {
   const errors: string[] = [];
 
@@ -50,6 +46,10 @@ function validatePayload(body: unknown): string[] {
 
   if (!Array.isArray(payload.noteTagChanges)) {
     errors.push("noteTagChanges must be an array.");
+  }
+
+  if (!Array.isArray(payload.noteImageChanges)) {
+    errors.push("noteImageChanges must be an array.");
   }
 
   if (Array.isArray(payload.noteChanges)) {
@@ -196,6 +196,75 @@ function validatePayload(body: unknown): string[] {
     });
   }
 
+  if (Array.isArray(payload.noteImageChanges)) {
+    payload.noteImageChanges.forEach((change, index) => {
+      if (!change || typeof change !== "object") {
+        errors.push(`noteImageChanges[${index}] must be an object.`);
+        return;
+      }
+
+      if (typeof change.clientId !== "string") {
+        errors.push(`noteImageChanges[${index}].clientId is required.`);
+      }
+
+      if (typeof change.noteClientId !== "string") {
+        errors.push(`noteImageChanges[${index}].noteClientId is required.`);
+      }
+
+      if (
+        change.remoteFileKey !== null &&
+        change.remoteFileKey !== undefined &&
+        typeof change.remoteFileKey !== "string"
+      ) {
+        errors.push(`noteImageChanges[${index}].remoteFileKey must be null or a string.`);
+      }
+
+      if (typeof change.mimeType !== "string") {
+        errors.push(`noteImageChanges[${index}].mimeType must be a string.`);
+      }
+
+      if (typeof change.fileName !== "string") {
+        errors.push(`noteImageChanges[${index}].fileName must be a string.`);
+      }
+
+      if (typeof change.fileSizeBytes !== "number" || Number.isNaN(change.fileSizeBytes)) {
+        errors.push(`noteImageChanges[${index}].fileSizeBytes must be a number.`);
+      }
+
+      if (
+        change.width !== null &&
+        change.width !== undefined &&
+        typeof change.width !== "number"
+      ) {
+        errors.push(`noteImageChanges[${index}].width must be null or a number.`);
+      }
+
+      if (
+        change.height !== null &&
+        change.height !== undefined &&
+        typeof change.height !== "number"
+      ) {
+        errors.push(`noteImageChanges[${index}].height must be null or a number.`);
+      }
+
+      if (typeof change.sortOrder !== "number" || Number.isNaN(change.sortOrder)) {
+        errors.push(`noteImageChanges[${index}].sortOrder must be a number.`);
+      }
+
+      if (!isIsoDate(change.createdAt)) {
+        errors.push(`noteImageChanges[${index}].createdAt must be a valid ISO string.`);
+      }
+
+      if (!isIsoDate(change.updatedAt)) {
+        errors.push(`noteImageChanges[${index}].updatedAt must be a valid ISO string.`);
+      }
+
+      if (!isNullableIsoDate(change.deletedAt)) {
+        errors.push(`noteImageChanges[${index}].deletedAt must be null or a valid ISO string.`);
+      }
+    });
+  }
+
   return errors;
 }
 
@@ -214,8 +283,14 @@ export async function postSync(
       return;
     }
 
-    const tokenEmail =
-      typeof req.auth?.email === "string" ? req.auth.email : null;
+   const rawEmail =
+  req.auth?.email ??
+  req.auth?.["https://noteit.tuhinrao.com/email"];
+
+const tokenEmail =
+  typeof rawEmail === "string" && rawEmail.trim()
+    ? rawEmail.trim().toLowerCase()
+    : null;
 
     if (!tokenEmail) {
       res.status(401).json({
