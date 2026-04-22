@@ -1,5 +1,6 @@
 import express from "express";
 import { postSync } from "./routes/sync";
+import { postCashSync } from "./routes/cash";
 import { requireBearerToken } from "./middleware/authBearer";
 import { env } from "./config/env";
 import { noteImagesRouter } from "./routes/noteImages";
@@ -13,6 +14,7 @@ app.get("/health", (_req, res) => {
 });
 
 app.post("/api/sync", requireBearerToken, postSync);
+app.post("/api/cash/sync", requireBearerToken, postCashSync);
 app.use("/api/note-images", requireBearerToken, noteImagesRouter);
 
 app.listen(env.port, () => {
