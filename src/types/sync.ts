@@ -60,6 +60,25 @@ export interface SyncNoteImageChange {
   syncStatus?: SyncStatus | null;
 }
 
+export interface SyncDayValidationChange {
+  clientId: string;
+  validationDate: string; // YYYY-MM-DD
+  isValidated: boolean;
+  validatedAt: string | null;
+  note: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
+export interface SyncDayValidationTagChange {
+  dayValidationClientId: string;
+  tagClientId: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
 export interface SyncRequestBody {
   userEmail: string;
   lastSyncedAt: string | null;
@@ -68,6 +87,8 @@ export interface SyncRequestBody {
   tagChanges: SyncTagChange[];
   noteTagChanges: SyncNoteTagChange[];
   noteImageChanges: SyncNoteImageChange[];
+  dayValidationChanges: SyncDayValidationChange[];
+  dayValidationTagChanges: SyncDayValidationTagChange[];
   deviceId?: string | null;
 }
 
@@ -133,12 +154,35 @@ export interface SyncNoteImage {
   deletedAt: string | null;
 }
 
+export interface SyncDayValidation {
+  clientId: string;
+  userEmail: string;
+  validationDate: string; // YYYY-MM-DD
+  isValidated: boolean;
+  validatedAt: string | null;
+  note: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
+export interface SyncDayValidationTag {
+  dayValidationClientId: string;
+  tagClientId: string;
+  userEmail: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
 export interface SyncResponse {
   notes: SyncNote[];
   categories: SyncCategory[];
   tags: SyncTag[];
   noteTagLinks: SyncNoteTag[];
   noteImages: SyncNoteImage[];
+  dayValidations: SyncDayValidation[];
+  dayValidationTagLinks: SyncDayValidationTag[];
   serverTime: string;
 }
 
@@ -150,4 +194,6 @@ export type CategoryChange = SyncCategoryChange;
 export type TagChange = SyncTagChange;
 export type NoteTagChange = SyncNoteTagChange;
 export type NoteImageChange = SyncNoteImageChange;
+export type DayValidationChange = SyncDayValidationChange;
+export type DayValidationTagChange = SyncDayValidationTagChange;
 export type SyncRequest = SyncRequestBody;

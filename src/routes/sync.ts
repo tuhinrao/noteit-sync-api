@@ -11,6 +11,19 @@ function isNullableIsoDate(value: unknown): boolean {
   return value === null || value === undefined || isIsoDate(value);
 }
 
+function isDateOnly(value: unknown): value is string {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
 function validatePayload(body: unknown): string[] {
   const errors: string[] = [];
 
@@ -50,6 +63,14 @@ function validatePayload(body: unknown): string[] {
 
   if (!Array.isArray(payload.noteImageChanges)) {
     errors.push("noteImageChanges must be an array.");
+  }
+
+  if (!Array.isArray(payload.dayValidationChanges)) {
+    errors.push("dayValidationChanges must be an array.");
+  }
+
+  if (!Array.isArray(payload.dayValidationTagChanges)) {
+    errors.push("dayValidationTagChanges must be an array.");
   }
 
   if (Array.isArray(payload.noteChanges)) {
@@ -265,6 +286,76 @@ function validatePayload(body: unknown): string[] {
     });
   }
 
+  if (Array.isArray(payload.dayValidationChanges)) {
+    payload.dayValidationChanges.forEach((change, index) => {
+      if (!change || typeof change !== "object") {
+        errors.push(`dayValidationChanges[${index}] must be an object.`);
+        return;
+      }
+
+      if (typeof change.clientId !== "string") {
+        errors.push(`dayValidationChanges[${index}].clientId is required.`);
+      }
+
+      if (!isDateOnly(change.validationDate)) {
+        errors.push(`dayValidationChanges[${index}].validationDate must be YYYY-MM-DD.`);
+      }
+
+      if (typeof change.isValidated !== "boolean") {
+        errors.push(`dayValidationChanges[${index}].isValidated must be a boolean.`);
+      }
+
+      if (!isNullableIsoDate(change.validatedAt)) {
+        errors.push(`dayValidationChanges[${index}].validatedAt must be null or a valid ISO string.`);
+      }
+
+      if (typeof change.note !== "string") {
+        errors.push(`dayValidationChanges[${index}].note must be a string.`);
+      }
+
+      if (!isIsoDate(change.createdAt)) {
+        errors.push(`dayValidationChanges[${index}].createdAt must be a valid ISO string.`);
+      }
+
+      if (!isIsoDate(change.updatedAt)) {
+        errors.push(`dayValidationChanges[${index}].updatedAt must be a valid ISO string.`);
+      }
+
+      if (!isNullableIsoDate(change.deletedAt)) {
+        errors.push(`dayValidationChanges[${index}].deletedAt must be null or a valid ISO string.`);
+      }
+    });
+  }
+
+  if (Array.isArray(payload.dayValidationTagChanges)) {
+    payload.dayValidationTagChanges.forEach((change, index) => {
+      if (!change || typeof change !== "object") {
+        errors.push(`dayValidationTagChanges[${index}] must be an object.`);
+        return;
+      }
+
+      if (typeof change.dayValidationClientId !== "string") {
+        errors.push(`dayValidationTagChanges[${index}].dayValidationClientId is required.`);
+      }
+
+      if (typeof change.tagClientId !== "string") {
+        errors.push(`dayValidationTagChanges[${index}].tagClientId is required.`);
+      }
+
+      if (!isIsoDate(change.createdAt)) {
+        errors.push(`dayValidationTagChanges[${index}].createdAt must be a valid ISO string.`);
+      }
+
+      if (!isIsoDate(change.updatedAt)) {
+        errors.push(`dayValidationTagChanges[${index}].updatedAt must be a valid ISO string.`);
+      }
+
+      if (!isNullableIsoDate(change.deletedAt)) {
+        errors.push(`dayValidationTagChanges[${index}].deletedAt must be null or a valid ISO string.`);
+      }
+    });
+  }
+
   return errors;
 }
 
@@ -283,14 +374,14 @@ export async function postSync(
       return;
     }
 
-   const rawEmail =
-  req.auth?.email ??
-  req.auth?.["https://noteit.tuhinrao.com/email"];
+    const rawEmail =
+      req.auth?.email ??
+      req.auth?.["https://noteit.tuhinrao.com/email"];
 
-const tokenEmail =
-  typeof rawEmail === "string" && rawEmail.trim()
-    ? rawEmail.trim().toLowerCase()
-    : null;
+    const tokenEmail =
+      typeof rawEmail === "string" && rawEmail.trim()
+        ? rawEmail.trim().toLowerCase()
+        : null;
 
     if (!tokenEmail) {
       res.status(401).json({
