@@ -19,11 +19,19 @@ export interface SyncDayValidationTagChange {
   deletedAt: string | null;
 }
 
+export interface SyncTrackedValidationTagChange {
+  tagClientId: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
 export interface DayValidationSyncRequest {
   userEmail: string;
   lastSyncedAt: string | null;
   dayValidationChanges?: SyncDayValidationChange[];
   dayValidationTagChanges?: SyncDayValidationTagChange[];
+  trackedValidationTagChanges?: SyncTrackedValidationTagChange[];
   tagChanges?: SyncTagChange[];
   deviceId?: string | null;
 }
@@ -49,9 +57,18 @@ export interface SyncDayValidationTag {
   deletedAt: string | null;
 }
 
+export interface SyncTrackedValidationTag {
+  tagClientId: string;
+  userEmail: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
 export interface DayValidationSyncResponse {
   dayValidations: SyncDayValidation[];
   dayValidationTagLinks: SyncDayValidationTag[];
+  trackedValidationTags: SyncTrackedValidationTag[];
   tags: SyncTag[];
   serverTime: string;
 }
@@ -61,3 +78,4 @@ export interface DayValidationSyncResponse {
  */
 export type DayValidationChange = SyncDayValidationChange;
 export type DayValidationTagChange = SyncDayValidationTagChange;
+export type TrackedValidationTagChange = SyncTrackedValidationTagChange;

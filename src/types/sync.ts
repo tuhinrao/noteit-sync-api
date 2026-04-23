@@ -33,12 +33,15 @@ export type {
 export type {
   SyncDayValidationChange,
   SyncDayValidationTagChange,
+  SyncTrackedValidationTagChange,
   DayValidationSyncRequest,
   SyncDayValidation,
   SyncDayValidationTag,
+  SyncTrackedValidationTag,
   DayValidationSyncResponse,
   DayValidationChange,
   DayValidationTagChange,
+  TrackedValidationTagChange,
 } from "./dayValidationSync";
 
 export type {

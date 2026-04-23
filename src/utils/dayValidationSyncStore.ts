@@ -7,6 +7,8 @@ import {
   DayValidationTagChange,
   SyncDayValidation,
   SyncDayValidationTag,
+  SyncTrackedValidationTag,
+  TrackedValidationTagChange,
 } from "../types/dayValidationSync";
 import { SyncTag, TagChange } from "../types/noteSync";
 
@@ -34,6 +36,14 @@ type DayValidationRow = {
 
 type DayValidationTagRow = {
   day_validation_client_id: string;
+  tag_client_id: string;
+  user_email: string;
+  created_at: Date | string;
+  updated_at: Date | string;
+  deleted_at: Date | string | null;
+};
+
+type TrackedValidationTagRow = {
   tag_client_id: string;
   user_email: string;
   created_at: Date | string;
@@ -74,6 +84,18 @@ function mapDayValidation(row: DayValidationRow): SyncDayValidation {
 function mapDayValidationTag(row: DayValidationTagRow): SyncDayValidationTag {
   return {
     dayValidationClientId: row.day_validation_client_id,
+    tagClientId: row.tag_client_id,
+    userEmail: row.user_email,
+    createdAt: toIso(row.created_at),
+    updatedAt: toIso(row.updated_at),
+    deletedAt: row.deleted_at ? toIso(row.deleted_at) : null,
+  };
+}
+
+function mapTrackedValidationTag(
+  row: TrackedValidationTagRow
+): SyncTrackedValidationTag {
+  return {
     tagClientId: row.tag_client_id,
     userEmail: row.user_email,
     createdAt: toIso(row.created_at),
@@ -224,6 +246,54 @@ async function applyDayValidationTagChanges(
   }
 }
 
+async function applyTrackedValidationTagChanges(
+  client: PoolClient,
+  userEmail: string,
+  trackedValidationTagChanges: TrackedValidationTagChange[]
+): Promise<void> {
+  for (const change of trackedValidationTagChanges) {
+    const tagOwnershipCheck = await client.query(
+      `
+      SELECT 1
+      FROM tags
+      WHERE client_id = $1
+        AND user_email = $2
+      LIMIT 1
+      `,
+      [change.tagClientId, userEmail]
+    );
+
+    if (tagOwnershipCheck.rowCount === 0) {
+      continue;
+    }
+
+    await client.query(
+      `
+      INSERT INTO tracked_validation_tags (
+        tag_client_id,
+        created_at,
+        updated_at,
+        deleted_at,
+        sync_status
+      )
+      VALUES ($1, $2, $3, $4, 'synced')
+      ON CONFLICT (tag_client_id)
+      DO UPDATE SET
+        updated_at = EXCLUDED.updated_at,
+        deleted_at = EXCLUDED.deleted_at,
+        sync_status = 'synced'
+      WHERE tracked_validation_tags.updated_at <= EXCLUDED.updated_at
+      `,
+      [
+        change.tagClientId,
+        change.createdAt,
+        change.updatedAt,
+        change.deletedAt,
+      ]
+    );
+  }
+}
+
 async function getServerTags(
   client: PoolClient,
   userEmail: string,
@@ -323,6 +393,37 @@ async function getServerDayValidationTagLinks(
   return result.rows.map(mapDayValidationTag);
 }
 
+async function getServerTrackedValidationTags(
+  client: PoolClient,
+  userEmail: string,
+  lastSyncedAt: string | null
+): Promise<SyncTrackedValidationTag[]> {
+  const boundary = lastSyncedAt ?? "1970-01-01T00:00:00.000Z";
+
+  const result = await client.query<TrackedValidationTagRow>(
+    `
+    SELECT
+      tvt.tag_client_id,
+      t.user_email,
+      tvt.created_at,
+      tvt.updated_at,
+      tvt.deleted_at
+    FROM tracked_validation_tags tvt
+    INNER JOIN tags t
+      ON t.client_id = tvt.tag_client_id
+    WHERE t.user_email = $1
+      AND GREATEST(
+        tvt.updated_at,
+        COALESCE(tvt.deleted_at, to_timestamp(0))
+      ) > $2::timestamptz
+    ORDER BY tvt.updated_at ASC
+    `,
+    [userEmail, boundary]
+  );
+
+  return result.rows.map(mapTrackedValidationTag);
+}
+
 export async function runDayValidationSync(
   payload: DayValidationSyncRequest
 ): Promise<DayValidationSyncResponse> {
@@ -342,11 +443,26 @@ export async function runDayValidationSync(
       payload.userEmail,
       payload.dayValidationTagChanges ?? []
     );
+    await applyTrackedValidationTagChanges(
+      client,
+      payload.userEmail,
+      payload.trackedValidationTagChanges ?? []
+    );
 
-    const [tags, dayValidations, dayValidationTagLinks] = await Promise.all([
+    const [
+      tags,
+      dayValidations,
+      dayValidationTagLinks,
+      trackedValidationTags,
+    ] = await Promise.all([
       getServerTags(client, payload.userEmail, payload.lastSyncedAt),
       getServerDayValidations(client, payload.userEmail, payload.lastSyncedAt),
       getServerDayValidationTagLinks(
+        client,
+        payload.userEmail,
+        payload.lastSyncedAt
+      ),
+      getServerTrackedValidationTags(
         client,
         payload.userEmail,
         payload.lastSyncedAt
@@ -359,6 +475,7 @@ export async function runDayValidationSync(
       tags,
       dayValidations,
       dayValidationTagLinks,
+      trackedValidationTags,
       serverTime: new Date().toISOString(),
     };
   } catch (error) {

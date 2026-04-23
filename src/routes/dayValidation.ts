@@ -60,6 +60,13 @@ function validateDayValidationSyncPayload(body: unknown): string[] {
   }
 
   if (
+    payload.trackedValidationTagChanges !== undefined &&
+    !Array.isArray(payload.trackedValidationTagChanges)
+  ) {
+    errors.push("trackedValidationTagChanges must be an array.");
+  }
+
+  if (
     payload.tagChanges !== undefined &&
     !Array.isArray(payload.tagChanges)
   ) {
@@ -183,6 +190,37 @@ function validateDayValidationSyncPayload(body: unknown): string[] {
     });
   }
 
+  if (Array.isArray(payload.trackedValidationTagChanges)) {
+    payload.trackedValidationTagChanges.forEach((change, index) => {
+      if (!change || typeof change !== "object") {
+        errors.push(`trackedValidationTagChanges[${index}] must be an object.`);
+        return;
+      }
+
+      if (typeof change.tagClientId !== "string") {
+        errors.push(`trackedValidationTagChanges[${index}].tagClientId is required.`);
+      }
+
+      if (!isIsoDate(change.createdAt)) {
+        errors.push(
+          `trackedValidationTagChanges[${index}].createdAt must be a valid ISO string.`
+        );
+      }
+
+      if (!isIsoDate(change.updatedAt)) {
+        errors.push(
+          `trackedValidationTagChanges[${index}].updatedAt must be a valid ISO string.`
+        );
+      }
+
+      if (!isNullableIsoDate(change.deletedAt)) {
+        errors.push(
+          `trackedValidationTagChanges[${index}].deletedAt must be null or a valid ISO string.`
+        );
+      }
+    });
+  }
+
   return errors;
 }
 
@@ -233,6 +271,7 @@ export async function postDayValidationSync(
       lastSyncedAt: payload.lastSyncedAt ?? null,
       dayValidationChanges: payload.dayValidationChanges ?? [],
       dayValidationTagChanges: payload.dayValidationTagChanges ?? [],
+      trackedValidationTagChanges: payload.trackedValidationTagChanges ?? [],
       tagChanges: payload.tagChanges ?? [],
       deviceId: payload.deviceId ?? null,
     });
