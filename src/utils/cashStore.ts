@@ -17,10 +17,15 @@ type CashEntryRow = {
   currency: string;
   created_at: Date | string;
   updated_at: Date | string;
+  deleted_at: Date | string | null;
 };
 
 function toIso(value: Date | string): string {
   return new Date(value).toISOString();
+}
+
+function toNullableIso(value: Date | string | null): string | null {
+  return value ? new Date(value).toISOString() : null;
 }
 
 function mapCashEntry(row: CashEntryRow): SyncCashEntry {
@@ -34,6 +39,7 @@ function mapCashEntry(row: CashEntryRow): SyncCashEntry {
     currency: row.currency,
     createdAt: toIso(row.created_at),
     updatedAt: toIso(row.updated_at),
+    deletedAt: toNullableIso(row.deleted_at),
   };
 }
 
@@ -54,9 +60,15 @@ async function applyCashEntryChanges(
         debit,
         currency,
         created_at,
-        updated_at
+        updated_at,
+        deleted_at
       )
-      values ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+      values (
+        $1, $2, $3, $4, $5, $6, $7,
+        $8::timestamptz,
+        $9::timestamptz,
+        $10::timestamptz
+      )
       on conflict (client_id)
       do update set
         entry_date = excluded.entry_date,
@@ -65,8 +77,11 @@ async function applyCashEntryChanges(
         debit = excluded.debit,
         currency = excluded.currency,
         user_email = excluded.user_email,
-        updated_at = NOW()
+        created_at = excluded.created_at,
+        updated_at = excluded.updated_at,
+        deleted_at = excluded.deleted_at
       where cash_entries.user_email = $2
+        and excluded.updated_at > cash_entries.updated_at
       `,
       [
         change.clientId,
@@ -76,7 +91,9 @@ async function applyCashEntryChanges(
         change.credit,
         change.debit,
         change.currency,
-        change.createdAt
+        change.createdAt,
+        change.updatedAt,
+        change.deletedAt,
       ]
     );
   }
@@ -100,7 +117,8 @@ async function getServerCashEntries(
       debit,
       currency,
       created_at,
-      updated_at
+      updated_at,
+      deleted_at
     from cash_entries
     where user_email = $1
       and updated_at > $2::timestamptz
@@ -144,4 +162,4 @@ export async function runCashSync(
   } finally {
     client.release();
   }
-}   
+}

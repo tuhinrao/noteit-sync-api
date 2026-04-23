@@ -7,12 +7,13 @@ export type CashEntryChange = {
   currency: string;
   createdAt: string;
   updatedAt: string;
+  deletedAt: string | null;
 };
 
 export type CashSyncRequest = {
   userEmail: string;
   lastSyncedAt: string | null;
-  cashEntryChanges: CashEntryChange[];
+  cashEntryChanges?: CashEntryChange[];
   deviceId?: string | null;
 };
 
@@ -26,6 +27,7 @@ export type SyncCashEntry = {
   currency: string;
   createdAt: string;
   updatedAt: string;
+  deletedAt: string | null;
 };
 
 export type CashSyncResponse = {

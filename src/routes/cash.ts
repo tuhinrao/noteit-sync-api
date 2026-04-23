@@ -7,6 +7,14 @@ function isIsoDate(value: unknown): value is string {
   return typeof value === "string" && !Number.isNaN(Date.parse(value));
 }
 
+function isDateOnly(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+    !Number.isNaN(Date.parse(`${value}T00:00:00.000Z`))
+  );
+}
+
 function validateCashPayload(body: unknown): string[] {
   const errors: string[] = [];
 
@@ -28,35 +36,62 @@ function validateCashPayload(body: unknown): string[] {
     errors.push("lastSyncedAt must be null or a valid ISO string.");
   }
 
-  if (!Array.isArray(payload.cashEntryChanges)) {
-    errors.push("cashEntryChanges must be an array.");
+  if (
+    payload.deviceId !== undefined &&
+    payload.deviceId !== null &&
+    typeof payload.deviceId !== "string"
+  ) {
+    errors.push("deviceId must be a string or null.");
+  }
+
+  if (
+    payload.cashEntryChanges !== undefined &&
+    !Array.isArray(payload.cashEntryChanges)
+  ) {
+    errors.push("cashEntryChanges must be an array if provided.");
     return errors;
   }
 
-  payload.cashEntryChanges.forEach((change, index) => {
+  const changes = payload.cashEntryChanges ?? [];
+
+  changes.forEach((change, index) => {
     if (!change || typeof change !== "object") {
       errors.push(`cashEntryChanges[${index}] must be an object.`);
       return;
     }
 
-    if (typeof change.clientId !== "string") {
+    if (typeof change.clientId !== "string" || !change.clientId.trim()) {
       errors.push(`cashEntryChanges[${index}].clientId is required.`);
     }
 
-    if (typeof change.entryDate !== "string") {
-      errors.push(`cashEntryChanges[${index}].entryDate is required.`);
+    if (!isDateOnly(change.entryDate)) {
+      errors.push(
+        `cashEntryChanges[${index}].entryDate must be a valid YYYY-MM-DD string.`
+      );
     }
 
     if (typeof change.details !== "string" || !change.details.trim()) {
       errors.push(`cashEntryChanges[${index}].details is required.`);
     }
 
-    if (typeof change.credit !== "number" || Number.isNaN(change.credit) || change.credit < 0) {
-      errors.push(`cashEntryChanges[${index}].credit must be a valid non-negative number.`);
+    if (
+      typeof change.credit !== "number" ||
+      Number.isNaN(change.credit) ||
+      change.credit < 0
+    ) {
+      errors.push(
+        `cashEntryChanges[${index}].credit must be a valid non-negative number.`
+      );
     }
 
-    if (typeof change.debit !== "number" || Number.isNaN(change.debit) || change.debit < 0) {
-      errors.push(`cashEntryChanges[${index}].debit must be a valid non-negative number.`);
+    if (
+      typeof change.debit !== "number" ||
+      Number.isNaN(change.debit) ||
+      change.debit < 0
+    ) {
+      errors.push(
+        `cashEntryChanges[${index}].debit must be a valid non-negative number.`
+      );
     }
 
     const hasValidSide =
@@ -64,7 +99,9 @@ function validateCashPayload(body: unknown): string[] {
       (change.debit > 0 && change.credit === 0);
 
     if (!hasValidSide) {
-      errors.push(`cashEntryChanges[${index}] must have exactly one positive side: credit or debit.`);
+      errors.push(
+        `cashEntryChanges[${index}] must have exactly one positive side: credit or debit.`
+      );
     }
 
     if (typeof change.currency !== "string" || !change.currency.trim()) {
@@ -72,11 +109,46 @@ function validateCashPayload(body: unknown): string[] {
     }
 
     if (!isIsoDate(change.createdAt)) {
-      errors.push(`cashEntryChanges[${index}].createdAt must be a valid ISO string.`);
+      errors.push(
+        `cashEntryChanges[${index}].createdAt must be a valid ISO string.`
+      );
     }
 
     if (!isIsoDate(change.updatedAt)) {
-      errors.push(`cashEntryChanges[${index}].updatedAt must be a valid ISO string.`);
+      errors.push(
+        `cashEntryChanges[${index}].updatedAt must be a valid ISO string.`
+      );
+    }
+
+    if (
+      change.deletedAt !== null &&
+      change.deletedAt !== undefined &&
+      !isIsoDate(change.deletedAt)
+    ) {
+      errors.push(
+        `cashEntryChanges[${index}].deletedAt must be null or a valid ISO string.`
+      );
+    }
+
+    if (
+      isIsoDate(change.createdAt) &&
+      isIsoDate(change.updatedAt) &&
+      new Date(change.updatedAt).getTime() < new Date(change.createdAt).getTime()
+    ) {
+      errors.push(
+        `cashEntryChanges[${index}].updatedAt cannot be earlier than createdAt.`
+      );
+    }
+
+    if (
+      change.deletedAt &&
+      isIsoDate(change.updatedAt) &&
+      isIsoDate(change.deletedAt) &&
+      new Date(change.deletedAt).getTime() < new Date(change.updatedAt).getTime()
+    ) {
+      errors.push(
+        `cashEntryChanges[${index}].deletedAt cannot be earlier than updatedAt.`
+      );
     }
   });
 
@@ -117,7 +189,7 @@ export async function postCashSync(
 
     const payload = req.body as CashSyncRequest;
 
-    if (payload.userEmail !== tokenEmail) {
+    if (payload.userEmail.trim().toLowerCase() !== tokenEmail) {
       res.status(403).json({
         error: "Forbidden",
         details: ["Payload userEmail does not match authenticated user."],
@@ -128,6 +200,7 @@ export async function postCashSync(
     const result = await runCashSync({
       ...payload,
       userEmail: tokenEmail,
+      cashEntryChanges: payload.cashEntryChanges ?? [],
     });
 
     res.status(200).json(result);
