@@ -56,7 +56,7 @@ async function applyCashEntryChanges(
         created_at,
         updated_at
       )
-      values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      values ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
       on conflict (client_id)
       do update set
         entry_date = excluded.entry_date,
@@ -64,10 +64,9 @@ async function applyCashEntryChanges(
         credit = excluded.credit,
         debit = excluded.debit,
         currency = excluded.currency,
-        updated_at = excluded.updated_at,
-        user_email = excluded.user_email
+        user_email = excluded.user_email,
+        updated_at = NOW()
       where cash_entries.user_email = $2
-        and cash_entries.updated_at <= excluded.updated_at
       `,
       [
         change.clientId,
@@ -77,8 +76,7 @@ async function applyCashEntryChanges(
         change.credit,
         change.debit,
         change.currency,
-        change.createdAt,
-        change.updatedAt,
+        change.createdAt
       ]
     );
   }
