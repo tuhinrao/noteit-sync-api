@@ -1,199 +1,49 @@
-export type SyncStatus =
-  | "synced"
-  | "pending_create"
-  | "pending_update"
-  | "pending_delete"
-  | "sync_error";
-
-export interface SyncNoteChange {
-  clientId: string;
-  title: string;
-  body: string;
-  categoryClientId: string | null;
-  isPinned: boolean;
-  isArchived: boolean;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
-  syncStatus?: SyncStatus | null;
-}
-
-export interface SyncCategoryChange {
-  clientId: string;
-  name: string;
-  colorHex: string;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
-}
-
-export interface SyncTagChange {
-  clientId: string;
-  name: string;
-  colorHex: string;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
-}
-
-export interface SyncNoteTagChange {
-  noteClientId: string;
-  tagClientId: string;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
-}
-
-export interface SyncNoteImageChange {
-  clientId: string;
-  noteClientId: string;
-  remoteFileKey: string | null;
-  mimeType: string;
-  fileName: string;
-  fileSizeBytes: number;
-  width: number | null;
-  height: number | null;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
-  syncStatus?: SyncStatus | null;
-}
-
-export interface SyncDayValidationChange {
-  clientId: string;
-  validationDate: string; // YYYY-MM-DD
-  isValidated: boolean;
-  validatedAt: string | null;
-  note: string;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
-}
-
-export interface SyncDayValidationTagChange {
-  dayValidationClientId: string;
-  tagClientId: string;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
-}
-
-export interface SyncRequestBody {
-  userEmail: string;
-  lastSyncedAt: string | null;
-  noteChanges: SyncNoteChange[];
-  categoryChanges: SyncCategoryChange[];
-  tagChanges: SyncTagChange[];
-  noteTagChanges: SyncNoteTagChange[];
-  noteImageChanges: SyncNoteImageChange[];
-  dayValidationChanges: SyncDayValidationChange[];
-  dayValidationTagChanges: SyncDayValidationTagChange[];
-  deviceId?: string | null;
-}
-
-export interface SyncNote {
-  clientId: string;
-  userEmail: string;
-  title: string;
-  body: string;
-  categoryClientId: string | null;
-  isPinned: boolean;
-  isArchived: boolean;
-  syncStatus: SyncStatus;
-  createdAt: string;
-  updatedAt: string;
-  lastSyncedAt: string | null;
-  deletedAt: string | null;
-}
-
-export interface SyncCategory {
-  clientId: string;
-  userEmail: string;
-  name: string;
-  colorHex: string;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
-}
-
-export interface SyncTag {
-  clientId: string;
-  userEmail: string;
-  name: string;
-  colorHex: string;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
-}
-
-export interface SyncNoteTag {
-  noteClientId: string;
-  tagClientId: string;
-  userEmail: string;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
-}
-
-export interface SyncNoteImage {
-  clientId: string;
-  noteClientId: string;
-  userEmail: string;
-  remoteFileKey: string | null;
-  mimeType: string;
-  fileName: string;
-  fileSizeBytes: number;
-  width: number | null;
-  height: number | null;
-  sortOrder: number;
-  syncStatus: SyncStatus;
-  createdAt: string;
-  updatedAt: string;
-  lastSyncedAt: string | null;
-  deletedAt: string | null;
-}
-
-export interface SyncDayValidation {
-  clientId: string;
-  userEmail: string;
-  validationDate: string; // YYYY-MM-DD
-  isValidated: boolean;
-  validatedAt: string | null;
-  note: string;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
-}
-
-export interface SyncDayValidationTag {
-  dayValidationClientId: string;
-  tagClientId: string;
-  userEmail: string;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
-}
-
-export interface SyncResponse {
-  notes: SyncNote[];
-  categories: SyncCategory[];
-  tags: SyncTag[];
-  noteTagLinks: SyncNoteTag[];
-  noteImages: SyncNoteImage[];
-  dayValidations: SyncDayValidation[];
-  dayValidationTagLinks: SyncDayValidationTag[];
-  serverTime: string;
-}
-
 /**
- * Backward/alternate aliases so the rest of the codebase can migrate gradually.
+ * Legacy compatibility barrel.
+ *
+ * New code should import from:
+ * - ./syncStatus
+ * - ./noteSync
+ * - ./dayValidationSync
+ * - ./cash
  */
-export type NoteChange = SyncNoteChange;
-export type CategoryChange = SyncCategoryChange;
-export type TagChange = SyncTagChange;
-export type NoteTagChange = SyncNoteTagChange;
-export type NoteImageChange = SyncNoteImageChange;
-export type DayValidationChange = SyncDayValidationChange;
-export type DayValidationTagChange = SyncDayValidationTagChange;
-export type SyncRequest = SyncRequestBody;
+
+export type { SyncStatus } from "./syncStatus";
+
+export type {
+  SyncNoteChange,
+  SyncCategoryChange,
+  SyncTagChange,
+  SyncNoteTagChange,
+  SyncNoteImageChange,
+  NoteSyncRequest,
+  SyncNote,
+  SyncCategory,
+  SyncTag,
+  SyncNoteTag,
+  SyncNoteImage,
+  NoteSyncResponse,
+  NoteChange,
+  CategoryChange,
+  TagChange,
+  NoteTagChange,
+  NoteImageChange,
+} from "./noteSync";
+
+export type {
+  SyncDayValidationChange,
+  SyncDayValidationTagChange,
+  DayValidationSyncRequest,
+  SyncDayValidation,
+  SyncDayValidationTag,
+  DayValidationSyncResponse,
+  DayValidationChange,
+  DayValidationTagChange,
+} from "./dayValidationSync";
+
+export type {
+  CashEntryChange,
+  CashSyncRequest,
+  SyncCashEntry,
+  CashSyncResponse,
+} from "./cash";

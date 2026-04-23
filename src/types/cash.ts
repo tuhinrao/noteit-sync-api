@@ -13,6 +13,7 @@ export type CashSyncRequest = {
   userEmail: string;
   lastSyncedAt: string | null;
   cashEntryChanges: CashEntryChange[];
+  deviceId?: string | null;
 };
 
 export type SyncCashEntry = {

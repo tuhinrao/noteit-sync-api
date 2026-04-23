@@ -1,24 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.postSync = postSync;
-const syncStore_1 = require("../utils/syncStore");
+const noteSyncStore_1 = require("../utils/noteSyncStore");
 function isIsoDate(value) {
     return typeof value === "string" && !Number.isNaN(Date.parse(value));
 }
 function isNullableIsoDate(value) {
     return value === null || value === undefined || isIsoDate(value);
 }
-function isDateOnly(value) {
-    if (typeof value !== "string") {
-        return false;
-    }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-        return false;
-    }
-    const parsed = new Date(`${value}T00:00:00.000Z`);
-    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
-}
-function validatePayload(body) {
+function validateNoteSyncPayload(body) {
     const errors = [];
     if (!body || typeof body !== "object") {
         return ["Request body must be an object."];
@@ -32,26 +22,25 @@ function validatePayload(body) {
         !isIsoDate(payload.lastSyncedAt)) {
         errors.push("lastSyncedAt must be null or a valid ISO string.");
     }
-    if (!Array.isArray(payload.noteChanges)) {
+    if (payload.noteChanges !== undefined &&
+        !Array.isArray(payload.noteChanges)) {
         errors.push("noteChanges must be an array.");
     }
-    if (!Array.isArray(payload.categoryChanges)) {
+    if (payload.categoryChanges !== undefined &&
+        !Array.isArray(payload.categoryChanges)) {
         errors.push("categoryChanges must be an array.");
     }
-    if (!Array.isArray(payload.tagChanges)) {
+    if (payload.tagChanges !== undefined &&
+        !Array.isArray(payload.tagChanges)) {
         errors.push("tagChanges must be an array.");
     }
-    if (!Array.isArray(payload.noteTagChanges)) {
+    if (payload.noteTagChanges !== undefined &&
+        !Array.isArray(payload.noteTagChanges)) {
         errors.push("noteTagChanges must be an array.");
     }
-    if (!Array.isArray(payload.noteImageChanges)) {
+    if (payload.noteImageChanges !== undefined &&
+        !Array.isArray(payload.noteImageChanges)) {
         errors.push("noteImageChanges must be an array.");
-    }
-    if (!Array.isArray(payload.dayValidationChanges)) {
-        errors.push("dayValidationChanges must be an array.");
-    }
-    if (!Array.isArray(payload.dayValidationTagChanges)) {
-        errors.push("dayValidationTagChanges must be an array.");
     }
     if (Array.isArray(payload.noteChanges)) {
         payload.noteChanges.forEach((change, index) => {
@@ -188,7 +177,8 @@ function validatePayload(body) {
             if (typeof change.fileName !== "string") {
                 errors.push(`noteImageChanges[${index}].fileName must be a string.`);
             }
-            if (typeof change.fileSizeBytes !== "number" || Number.isNaN(change.fileSizeBytes)) {
+            if (typeof change.fileSizeBytes !== "number" ||
+                Number.isNaN(change.fileSizeBytes)) {
                 errors.push(`noteImageChanges[${index}].fileSizeBytes must be a number.`);
             }
             if (change.width !== null &&
@@ -201,7 +191,8 @@ function validatePayload(body) {
                 typeof change.height !== "number") {
                 errors.push(`noteImageChanges[${index}].height must be null or a number.`);
             }
-            if (typeof change.sortOrder !== "number" || Number.isNaN(change.sortOrder)) {
+            if (typeof change.sortOrder !== "number" ||
+                Number.isNaN(change.sortOrder)) {
                 errors.push(`noteImageChanges[${index}].sortOrder must be a number.`);
             }
             if (!isIsoDate(change.createdAt)) {
@@ -215,69 +206,14 @@ function validatePayload(body) {
             }
         });
     }
-    if (Array.isArray(payload.dayValidationChanges)) {
-        payload.dayValidationChanges.forEach((change, index) => {
-            if (!change || typeof change !== "object") {
-                errors.push(`dayValidationChanges[${index}] must be an object.`);
-                return;
-            }
-            if (typeof change.clientId !== "string") {
-                errors.push(`dayValidationChanges[${index}].clientId is required.`);
-            }
-            if (!isDateOnly(change.validationDate)) {
-                errors.push(`dayValidationChanges[${index}].validationDate must be YYYY-MM-DD.`);
-            }
-            if (typeof change.isValidated !== "boolean") {
-                errors.push(`dayValidationChanges[${index}].isValidated must be a boolean.`);
-            }
-            if (!isNullableIsoDate(change.validatedAt)) {
-                errors.push(`dayValidationChanges[${index}].validatedAt must be null or a valid ISO string.`);
-            }
-            if (typeof change.note !== "string") {
-                errors.push(`dayValidationChanges[${index}].note must be a string.`);
-            }
-            if (!isIsoDate(change.createdAt)) {
-                errors.push(`dayValidationChanges[${index}].createdAt must be a valid ISO string.`);
-            }
-            if (!isIsoDate(change.updatedAt)) {
-                errors.push(`dayValidationChanges[${index}].updatedAt must be a valid ISO string.`);
-            }
-            if (!isNullableIsoDate(change.deletedAt)) {
-                errors.push(`dayValidationChanges[${index}].deletedAt must be null or a valid ISO string.`);
-            }
-        });
-    }
-    if (Array.isArray(payload.dayValidationTagChanges)) {
-        payload.dayValidationTagChanges.forEach((change, index) => {
-            if (!change || typeof change !== "object") {
-                errors.push(`dayValidationTagChanges[${index}] must be an object.`);
-                return;
-            }
-            if (typeof change.dayValidationClientId !== "string") {
-                errors.push(`dayValidationTagChanges[${index}].dayValidationClientId is required.`);
-            }
-            if (typeof change.tagClientId !== "string") {
-                errors.push(`dayValidationTagChanges[${index}].tagClientId is required.`);
-            }
-            if (!isIsoDate(change.createdAt)) {
-                errors.push(`dayValidationTagChanges[${index}].createdAt must be a valid ISO string.`);
-            }
-            if (!isIsoDate(change.updatedAt)) {
-                errors.push(`dayValidationTagChanges[${index}].updatedAt must be a valid ISO string.`);
-            }
-            if (!isNullableIsoDate(change.deletedAt)) {
-                errors.push(`dayValidationTagChanges[${index}].deletedAt must be null or a valid ISO string.`);
-            }
-        });
-    }
     return errors;
 }
 async function postSync(req, res) {
     try {
-        const errors = validatePayload(req.body);
+        const errors = validateNoteSyncPayload(req.body);
         if (errors.length > 0) {
             res.status(400).json({
-                error: "Invalid sync payload.",
+                error: "Invalid note sync payload.",
                 details: errors,
             });
             return;
@@ -302,16 +238,22 @@ async function postSync(req, res) {
             });
             return;
         }
-        const result = await (0, syncStore_1.runSync)({
-            ...payload,
+        const result = await (0, noteSyncStore_1.runNoteSync)({
             userEmail: tokenEmail,
+            lastSyncedAt: payload.lastSyncedAt ?? null,
+            noteChanges: payload.noteChanges ?? [],
+            categoryChanges: payload.categoryChanges ?? [],
+            tagChanges: payload.tagChanges ?? [],
+            noteTagChanges: payload.noteTagChanges ?? [],
+            noteImageChanges: payload.noteImageChanges ?? [],
+            deviceId: payload.deviceId ?? null,
         });
         res.status(200).json(result);
     }
     catch (error) {
-        console.error("Sync failed:", error);
+        console.error("Note sync failed:", error);
         res.status(500).json({
-            error: "Sync failed.",
+            error: "Note sync failed.",
         });
     }
 }
